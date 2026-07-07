@@ -165,5 +165,8 @@ MIT
 
 ## Authors
 
-Anthony Di Furia — LEAP, Laboratorio ElettroAcustico Permanente, Rome  
+Luca Bimbi
+
+Anthony Di Furia — LEAP, Laboratorio ElettroAcustico Permanente, Rome - Conservatorio N. Piccinni, Bari 
+
 Giuseppe Silvi — Conservatorio A. Casella, L'Aquila

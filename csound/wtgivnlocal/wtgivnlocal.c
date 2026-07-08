@@ -3,53 +3,53 @@
  * ============================================================================
  * Csound plugin opcode: wtgivnlocal
  *
- * DESCRIZIONE
+ * DESCRIPTION
  * -----------
- * Oscillatore wavetable con mescolanza timbrica NON-LOCALE tramite ROTAZIONI
- * DI GIVENS a passo primo.
+ * Wavetable oscillator with NON-LOCAL timbral mixing via prime-step
+ * GIVENS ROTATIONS.
  *
- * A differenza di wtgivlocal (che opera su coppie adiacenti), questo opcode
- * usa un passo primo PRIME_STEP=37 (coprimo con 1024) per selezionare le
- * coppie di campioni da ruotare:
+ * Unlike wtgivlocal (which operates on adjacent pairs), this opcode
+ * uses a prime step PRIME_STEP=37 (coprime with 1024) to select the
+ * pairs of samples to rotate:
  *
- *   coppia t: (i, (i + PRIME_STEP) % 1024)
+ *   pair t: (i, (i + PRIME_STEP) % 1024)
  *
- * Poiché gcd(37, 1024) = 1, la sequenza di indici visita tutte le 1024
- * posizioni prima di ripetersi (teorema dell'orbita). Questo garantisce
- * una mescolanza GLOBALE dell'energia spettrale fin dal primo passo,
- * anziché una diffusione locale come nel Plugin 1.
+ * Since gcd(37, 1024) = 1, the sequence of indices visits all 1024
+ * positions before repeating (orbit theorem). This guarantees a GLOBAL
+ * mixing of spectral energy from the very first step, rather than the
+ * local diffusion seen in Plugin 1.
  *
- * Effetto sonoro: cambiamento spettrale più ampio e immediato rispetto alla
- * catena locale. Utile per trasformazioni timbriche radicali o per esplorare
- * regioni distanti dello spazio SO(1024).
+ * Sonic effect: broader and more immediate spectral change compared to
+ * the local chain. Useful for radical timbral transformations or for
+ * exploring distant regions of the SO(1024) space.
  *
- * SINTASSI CSOUND
- * ---------------
+ * CSOUND SYNTAX
+ * -------------
  *   aOut wtgivnlocal kfreq, kamp, itab,
  *                      kstart, kright, kleft, kboth,
  *                      ktheta0, kdecay, kmove
  *
- * PARAMETRI
- * ---------
- *   kfreq   (k) : frequenza [Hz]
- *   kamp    (k) : ampiezza
- *   itab    (i) : numero ftable (lunghezza >= 1024)
- *   kstart  (k) : indice di partenza [0..1023]
- *   kright  (k) : densità mixing locale forward (i,i+1) [0..1]
- *   kleft   (k) : densità mixing locale backward (i,i-1) [0..1]
- *   kboth   (k) : densità mixing non-locale (i, i+37) [0..1]
- *   ktheta0 (k) : angolo iniziale [radianti]
- *   kdecay  (k) : decadimento geometrico degli angoli [0..1]
- *   kmove   (k) : scaler globale trasformazione [0..1]
- *                 kmove=0 => wavetable base inalterata
- *                 kmove=1 => trasformazione completa
+ * PARAMETERS
+ * ----------
+ *   kfreq   (k) : frequency [Hz]
+ *   kamp    (k) : amplitude
+ *   itab    (i) : ftable number (length >= 1024)
+ *   kstart  (k) : starting index [0..1023]
+ *   kright  (k) : forward local mixing density (i,i+1) [0..1]
+ *   kleft   (k) : backward local mixing density (i,i-1) [0..1]
+ *   kboth   (k) : non-local mixing density (i, i+37) [0..1]
+ *   ktheta0 (k) : initial angle [radians]
+ *   kdecay  (k) : geometric decay of the angles [0..1]
+ *   kmove   (k) : global transformation scaler [0..1]
+ *                 kmove=0 => base wavetable unaltered
+ *                 kmove=1 => full transformation
  *
- * NOTE
- * ----
- * - right/left/both controllano il NUMERO di rotazioni per k-block
- *   (0.0 => 0 rotazioni, 1.0 => MAX_STEPS=512 rotazioni).
- * - L'ordine applicazione è: both (non-locale) -> right -> left.
- * - MAX_STEPS=512 bilancia qualità sonora e budget CPU.
+ * NOTES
+ * -----
+ * - right/left/both control the NUMBER of rotations per k-block
+ *   (0.0 => 0 rotations, 1.0 => MAX_STEPS=512 rotations).
+ * - Application order is: both (non-local) -> right -> left.
+ * - MAX_STEPS=512 balances sound quality and CPU budget.
  * ============================================================================
  */
 
@@ -60,37 +60,37 @@
 #define WT_LEN  1024
 #define WT_MASK (WT_LEN - 1)
 
-/* Passo primo coprimo con 1024: garantisce che le coppie non-locali
- * visitino tutte le 1024 posizioni prima di ripetersi. */
+/* Prime step coprime with 1024: guarantees that the non-local pairs
+ * visit all 1024 positions before repeating. */
 static const int PRIME_STEP = 37;
 
-/* Budget massimo rotazioni per k-block per ciascuna direzione.
- * 512 è un buon compromesso tra ricchezza spettrale e CPU usage. */
+/* Maximum rotation budget per k-block for each direction.
+ * 512 is a good compromise between spectral richness and CPU usage. */
 static const int MAX_STEPS = 512;
 
 /* ============================================================
- * Struttura dati dell'opcode
+ * Opcode data structure
  * ============================================================ */
 typedef struct {
   OPDS  h;
 
   MYFLT *out;
 
-  /* parametri oscillatore */
+  /* oscillator parameters */
   MYFLT *kfreq;
   MYFLT *kamp;
   MYFLT *itab;
 
-  /* parametri dispersione */
-  MYFLT *kstart;        /* indice di partenza [0..1023] */
-  MYFLT *kright;        /* densità mixing locale forward [0..1] */
-  MYFLT *kleft;         /* densità mixing locale backward [0..1] */
-  MYFLT *kboth;         /* densità mixing non-locale [0..1] */
-  MYFLT *ktheta0;       /* angolo iniziale [radianti] */
-  MYFLT *kdecay;        /* decadimento geometrico [0..1] */
-  MYFLT *kmove;         /* scaler globale [0..1] */
+  /* dispersion parameters */
+  MYFLT *kstart;        /* starting index [0..1023] */
+  MYFLT *kright;        /* forward local mixing density [0..1] */
+  MYFLT *kleft;         /* backward local mixing density [0..1] */
+  MYFLT *kboth;         /* non-local mixing density [0..1] */
+  MYFLT *ktheta0;       /* initial angle [radians] */
+  MYFLT *kdecay;        /* geometric decay [0..1] */
+  MYFLT *kmove;         /* global scaler [0..1] */
 
-  /* stato interno */
+  /* internal state */
   double phase;
   double sr;
 
@@ -129,8 +129,8 @@ static void peak_normalize(MYFLT *x)
 
 /* ============================================================
  * apply_right
- * steps rotazioni locali forward: (i, i+1), avanza i = j.
- * Effetto: diffusione spettrale locale in avanti.
+ * steps forward local rotations: (i, i+1), advance i = j.
+ * Effect: local spectral diffusion moving forward.
  * ============================================================ */
 static void apply_right(MYFLT *x, int start, int steps, double theta0, double decay)
 {
@@ -146,7 +146,7 @@ static void apply_right(MYFLT *x, int start, int steps, double theta0, double de
 
 /* ============================================================
  * apply_left
- * steps rotazioni locali backward: (i, i-1), avanza i = j.
+ * steps backward local rotations: (i, i-1), advance i = j.
  * ============================================================ */
 static void apply_left(MYFLT *x, int start, int steps, double theta0, double decay)
 {
@@ -162,12 +162,12 @@ static void apply_left(MYFLT *x, int start, int steps, double theta0, double dec
 
 /* ============================================================
  * apply_both_nonlocal
- * steps rotazioni NON-LOCALI a passo primo:
- *   coppia: (i, (i+PRIME_STEP) % 1024)
- *   drift: i avanza di 1 ad ogni passo (evita di ripetere lo stesso pattern)
+ * steps NON-LOCAL prime-step rotations:
+ *   pair: (i, (i+PRIME_STEP) % 1024)
+ *   drift: i advances by 1 at each step (avoids repeating the same pattern)
  *
- * La combinazione passo-primo + drift garantisce che le rotazioni
- * raggiungano rapidamente tutto lo spazio della wavetable.
+ * The combination of prime-step + drift guarantees that the rotations
+ * quickly reach the entire span of the wavetable.
  * ============================================================ */
 static void apply_both_nonlocal(MYFLT *x, int start, int steps, double theta0, double decay)
 {
@@ -177,7 +177,7 @@ static void apply_both_nonlocal(MYFLT *x, int start, int steps, double theta0, d
     int j = (i + PRIME_STEP) & WT_MASK;
     givens_inplace(x, i, j, th);
     th *= decay;
-    i = (i + 1) & WT_MASK;  /* drift: avanza di 1 ad ogni passo */
+    i = (i + 1) & WT_MASK;  /* drift: advances by 1 at each step */
   }
 }
 
@@ -194,12 +194,12 @@ static int wtgivnlocal_init(CSOUND *csound, WTGIVNLOCAL *p)
 
 /* ============================================================
  * wtgivnlocal_perf  [a+k-rate]
- * Ogni k-block:
- *   1) Carica wavetable base dalla ftable
- *   2) Converte right/left/both in numero di rotazioni (0..MAX_STEPS)
- *   3) Applica: both_nonlocal -> right -> left
- *   4) Peak-normalizza
- *   5) Loop audio con interpolazione lineare
+ * Every k-block:
+ *   1) Load the base wavetable from the ftable
+ *   2) Convert right/left/both into a number of rotations (0..MAX_STEPS)
+ *   3) Apply: both_nonlocal -> right -> left
+ *   4) Peak-normalize
+ *   5) Audio loop with linear interpolation
  * ============================================================ */
 static int wtgivnlocal_perf(CSOUND *csound, WTGIVNLOCAL *p)
 {
@@ -211,7 +211,7 @@ static int wtgivnlocal_perf(CSOUND *csound, WTGIVNLOCAL *p)
   if (UNLIKELY(offset)) memset(out, 0, offset * sizeof(MYFLT));
   if (UNLIKELY(early)) { nsmps -= early; memset(&out[nsmps], 0, early * sizeof(MYFLT)); }
 
-  /* 1) carica wavetable base */
+  /* 1) load base wavetable */
   FUNC *ft = csound->FTnp2Find(csound, p->itab);
   if (UNLIKELY(ft == NULL || ft->flen < WT_LEN)) {
     for (uint32_t n = offset; n < nsmps; n++) out[n] = FL(0.0);
@@ -219,7 +219,7 @@ static int wtgivnlocal_perf(CSOUND *csound, WTGIVNLOCAL *p)
   }
   for (int i = 0; i < WT_LEN; i++) p->wt[i] = ft->ftable[i];
 
-  /* 2) leggi e clamp parametri */
+  /* 2) read and clamp parameters */
   int start = clampi((int)floor((double)*p->kstart + 0.5), 0, WT_LEN-1);
 
   double right  = (double)*p->kright;  if (right < 0) right = 0; if (right > 1) right = 1;
@@ -229,15 +229,15 @@ static int wtgivnlocal_perf(CSOUND *csound, WTGIVNLOCAL *p)
   double decay  = (double)*p->kdecay;  if (decay < 0) decay = 0; if (decay > 1) decay = 1;
   double move   = (double)*p->kmove;   if (move  < 0) move  = 0; if (move  > 1) move  = 1;
 
-  /* kmove scala theta0: move=0 => nessuna rotazione */
+  /* kmove scales theta0: move=0 => no rotation */
   double theta_eff = theta0 * move;
 
-  /* 3) converti densità in numero di rotazioni per k-block */
+  /* 3) convert density into number of rotations per k-block */
   int stepsR = (int)floor(right * (double)MAX_STEPS);
   int stepsL = (int)floor(left  * (double)MAX_STEPS);
   int stepsB = (int)floor(both  * (double)MAX_STEPS);
 
-  /* 4) applica: non-locale prima (mescolanza globale), poi locali */
+  /* 4) apply: non-local first (global mixing), then local */
   if (stepsB > 0) apply_both_nonlocal(p->wt, start, stepsB, theta_eff, decay);
   if (stepsR > 0) apply_right        (p->wt, start, stepsR, theta_eff, decay);
   if (stepsL > 0) apply_left         (p->wt, start, stepsL, theta_eff, decay);
@@ -245,7 +245,7 @@ static int wtgivnlocal_perf(CSOUND *csound, WTGIVNLOCAL *p)
   /* 5) peak normalize */
   peak_normalize(p->wt);
 
-  /* 6) loop audio con interpolazione lineare */
+  /* 6) audio loop with linear interpolation */
   double sr    = p->sr;
   double freq  = (double)*p->kfreq;  if (freq < 0) freq = 0;
   double amp   = (double)*p->kamp;
@@ -271,8 +271,8 @@ static int wtgivnlocal_perf(CSOUND *csound, WTGIVNLOCAL *p)
 }
 
 /* ============================================================
- * Registrazione opcode
- * Firma: aOut wtgivnlocal kfreq, kamp, itab,
+ * Opcode registration
+ * Signature: aOut wtgivnlocal kfreq, kamp, itab,
  *                           kstart, kright, kleft, kboth,
  *                           ktheta0, kdecay, kmove
  * ============================================================ */

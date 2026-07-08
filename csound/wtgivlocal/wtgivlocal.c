@@ -3,47 +3,47 @@
  * ============================================================================
  * Csound plugin opcode: wtgivlocal
  *
- * DESCRIZIONE
+ * DESCRIPTION
  * -----------
- * Oscillatore wavetable con dispersione timbrica locale tramite ROTAZIONI DI
- * GIVENS su coppie adiacenti di campioni.
+ * Wavetable oscillator with local timbral dispersion via GIVENS ROTATIONS
+ * on adjacent pairs of samples.
  *
- * Una rotazione di Givens G(i, j, theta) appartiene a SO(N): è una rotazione
- * nel piano (i,j) dello spazio R^N che preserva esattamente la norma L2
- * (energia) del vettore. Applicata a una wavetable di N=1024 campioni, mescola
- * solo i campioni in posizione i e j, lasciando invariati tutti gli altri:
+ * A Givens rotation G(i, j, theta) belongs to SO(N): it is a rotation
+ * in the (i,j) plane of R^N space that exactly preserves the L2 norm
+ * (energy) of the vector. Applied to a wavetable of N=1024 samples, it
+ * mixes only the samples at positions i and j, leaving all others unchanged:
  *
  *   x'[i] =  cos(theta)*x[i] - sin(theta)*x[j]
  *   x'[j] =  sin(theta)*x[i] + cos(theta)*x[j]
  *
- * Questo opcode applica una CATENA LOCALE: partendo da un indice (kstart),
- * la rotazione viene applicata a coppie adiacenti (k, k+1). L'angolo decade
- * geometricamente (theta_t = theta0 * decay^t * kmove), quindi i campioni
- * vicini a kstart sono più perturbati di quelli lontani.
+ * This opcode applies a LOCAL CHAIN: starting from an index (kstart),
+ * the rotation is applied to adjacent pairs (k, k+1). The angle decays
+ * geometrically (theta_t = theta0 * decay^t * kmove), so samples near
+ * kstart are perturbed more than those farther away.
  *
- * Effetto sonoro: diffusione spettrale lenta e controllata, modifica
- * preferenziale dei parziali legati alla regione kstart della wavetable.
+ * Sonic effect: slow, controlled spectral diffusion, with preferential
+ * modification of the partials tied to the kstart region of the wavetable.
  *
- * SINTASSI CSOUND
- * ---------------
+ * CSOUND SYNTAX
+ * -------------
  *   aOut wtgivlocal kfreq, kamp, itab,
  *                     kstart, kright, kleft, kboth,
  *                     ktheta0, kdecay, kmove
  *
- * PARAMETRI
- * ---------
- *   kfreq   (k) : frequenza di oscillazione [Hz]
- *   kamp    (k) : ampiezza di uscita
- *   itab    (i) : numero ftable Csound (lunghezza >= 1024 campioni)
- *   kstart  (k) : indice di partenza della catena [0..1022]
- *   kright  (k) : ampiezza catena verso destra [0..1]
- *   kleft   (k) : ampiezza catena verso sinistra [0..1]
- *   kboth   (k) : ampiezza catena bidirezionale [0..1]
- *   ktheta0 (k) : angolo iniziale [radianti]
- *   kdecay  (k) : decadimento geometrico degli angoli [0..1]
- *   kmove   (k) : scaler globale trasformazione [0..1]
- *                 kmove=0 => wavetable base inalterata
- *                 kmove=1 => trasformazione completa
+ * PARAMETERS
+ * ----------
+ *   kfreq   (k) : oscillation frequency [Hz]
+ *   kamp    (k) : output amplitude
+ *   itab    (i) : Csound ftable number (length >= 1024 samples)
+ *   kstart  (k) : chain starting index [0..1022]
+ *   kright  (k) : rightward chain amplitude [0..1]
+ *   kleft   (k) : leftward chain amplitude [0..1]
+ *   kboth   (k) : bidirectional chain amplitude [0..1]
+ *   ktheta0 (k) : initial angle [radians]
+ *   kdecay  (k) : geometric decay of the angles [0..1]
+ *   kmove   (k) : global transformation scaler [0..1]
+ *                 kmove=0 => base wavetable unaltered
+ *                 kmove=1 => full transformation
  * ============================================================================
  */
 
@@ -58,43 +58,43 @@
 #define WT_LEN 1024
 
 /* ============================================================
- * Struttura dati dell'opcode (una istanza per voce Csound)
+ * Opcode data structure (one instance per Csound voice)
  * ============================================================ */
 typedef struct {
-  OPDS  h;              /* header obbligatorio Csound */
+  OPDS  h;              /* mandatory Csound header */
 
-  MYFLT *out;           /* buffer audio a-rate in uscita */
+  MYFLT *out;           /* a-rate audio output buffer */
 
-  /* parametri oscillatore */
-  MYFLT *kfreq;         /* frequenza [Hz] */
-  MYFLT *kamp;          /* ampiezza */
-  MYFLT *itab;          /* numero ftable Csound */
+  /* oscillator parameters */
+  MYFLT *kfreq;         /* frequency [Hz] */
+  MYFLT *kamp;          /* amplitude */
+  MYFLT *itab;          /* Csound ftable number */
 
-  /* parametri dispersione */
-  MYFLT *kstart;        /* indice di partenza catena [0..1022] */
-  MYFLT *kright;        /* ampiezza catena destra [0..1] */
-  MYFLT *kleft;         /* ampiezza catena sinistra [0..1] */
-  MYFLT *kboth;         /* ampiezza catena bidirezionale [0..1] */
-  MYFLT *ktheta0;       /* angolo iniziale [radianti] */
-  MYFLT *kdecay;        /* decadimento geometrico [0..1] */
-  MYFLT *kmove;         /* scaler globale [0..1]; 0=base, 1=pieno */
+  /* dispersion parameters */
+  MYFLT *kstart;        /* chain starting index [0..1022] */
+  MYFLT *kright;        /* right chain amplitude [0..1] */
+  MYFLT *kleft;         /* left chain amplitude [0..1] */
+  MYFLT *kboth;         /* bidirectional chain amplitude [0..1] */
+  MYFLT *ktheta0;       /* initial angle [radians] */
+  MYFLT *kdecay;        /* geometric decay [0..1] */
+  MYFLT *kmove;         /* global scaler [0..1]; 0=base, 1=full */
 
-  /* stato interno */
-  double phase;         /* fase oscillatore [0,1) */
+  /* internal state */
+  double phase;         /* oscillator phase [0,1) */
   double sr;            /* sample rate [Hz] */
 
-  MYFLT wt[WT_LEN];     /* copia di lavoro della wavetable trasformata */
+  MYFLT wt[WT_LEN];     /* working copy of the transformed wavetable */
 } WTGIVLOCAL;
 
 
 /* ============================================================
  * givens_inplace
- * Applica G(i,j,theta) al vettore x in-place.
+ * Applies G(i,j,theta) to the vector x in-place.
  *
  *   x'[i] =  cos(theta)*x[i] - sin(theta)*x[j]
  *   x'[j] =  sin(theta)*x[i] + cos(theta)*x[j]
  *
- * Proprietà: conserva x[i]^2 + x[j]^2 (norma del piano).
+ * Property: preserves x[i]^2 + x[j]^2 (plane norm).
  * ============================================================ */
 static inline void givens_inplace(MYFLT *x, int i, int j, double theta)
 {
@@ -115,10 +115,10 @@ static inline int clampi(int v, int lo, int hi)
 
 /* ============================================================
  * apply_chain_right
- * Catena locale verso destra a partire da start:
+ * Local chain moving rightward starting from start:
  *   (start,start+1), (start+1,start+2), ... , (WT_LEN-2, WT_LEN-1)
- * Angolo: theta_t = theta0 * decay^t
- * Effetto: diffusione spettrale che parte da kstart e si propaga a destra.
+ * Angle: theta_t = theta0 * decay^t
+ * Effect: spectral diffusion starting at kstart and propagating rightward.
  * ============================================================ */
 static void apply_chain_right(MYFLT *x, int start, double theta0, double decay)
 {
@@ -131,8 +131,8 @@ static void apply_chain_right(MYFLT *x, int start, double theta0, double decay)
 
 /* ============================================================
  * apply_chain_left
- * Prima applica una rotazione pivot (start, start+1), poi risale
- * verso sinistra: (start-1,start), (start-2,start-1), ..., (0,1).
+ * First applies a pivot rotation (start, start+1), then moves back
+ * leftward: (start-1,start), (start-2,start-1), ..., (0,1).
  * ============================================================ */
 static void apply_chain_left(MYFLT *x, int start, double theta0, double decay)
 {
@@ -147,13 +147,13 @@ static void apply_chain_left(MYFLT *x, int start, double theta0, double decay)
 
 /* ============================================================
  * apply_chain_both
- * Espansione bidirezionale simmetrica da start:
+ * Symmetric bidirectional expansion from start:
  *   t=0: (start,   start+1)
  *   t=1: (start-1, start)
  *   t=2: (start+1, start+2)
  *   t=3: (start-2, start-1)
  *   ...
- * Effetto: perturbazione centrata su kstart, decrescente verso i bordi.
+ * Effect: perturbation centered on kstart, decreasing toward the edges.
  * ============================================================ */
 static void apply_chain_both(MYFLT *x, int start, double theta0, double decay)
 {
@@ -179,8 +179,8 @@ static void apply_chain_both(MYFLT *x, int start, double theta0, double decay)
 
 /* ============================================================
  * peak_normalize
- * Normalizza il vettore al picco assoluto = 1.0.
- * Necessaria perché le rotazioni conservano la norma L2 ma non il picco.
+ * Normalizes the vector to an absolute peak of 1.0.
+ * Necessary because the rotations preserve the L2 norm but not the peak.
  * ============================================================ */
 static void peak_normalize(MYFLT *x)
 {
@@ -197,7 +197,7 @@ static void peak_normalize(MYFLT *x)
 
 /* ============================================================
  * wtgivlocal_init  [i-rate]
- * Inizializza fase e sample rate; azera la wavetable di lavoro.
+ * Initializes phase and sample rate; zeroes the working wavetable.
  * ============================================================ */
 static int wtgivlocal_init(CSOUND *csound, WTGIVLOCAL *p)
 {
@@ -209,11 +209,11 @@ static int wtgivlocal_init(CSOUND *csound, WTGIVLOCAL *p)
 
 /* ============================================================
  * wtgivlocal_perf  [a+k-rate]
- * Chiamata ogni k-block. Esegue:
- *   1) Carica wavetable base dalla ftable
- *   2) Applica catene Givens: both -> right -> left
- *   3) Peak-normalizza
- *   4) Loop audio con interpolazione lineare
+ * Called every k-block. Performs:
+ *   1) Load the base wavetable from the ftable
+ *   2) Apply Givens chains: both -> right -> left
+ *   3) Peak-normalize
+ *   4) Audio loop with linear interpolation
  * ============================================================ */
 static int wtgivlocal_perf(CSOUND *csound, WTGIVLOCAL *p)
 {
@@ -229,7 +229,7 @@ static int wtgivlocal_perf(CSOUND *csound, WTGIVLOCAL *p)
     memset(&out[nsmps], 0, early * sizeof(MYFLT));
   }
 
-  /* 1) carica wavetable base */
+  /* 1) load base wavetable */
   FUNC *ft = csound->FTnp2Find(csound, p->itab);
   if (UNLIKELY(ft == NULL || ft->flen < WT_LEN)) {
     for (uint32_t n = offset; n < nsmps; n++) out[n] = FL(0.0);
@@ -237,7 +237,7 @@ static int wtgivlocal_perf(CSOUND *csound, WTGIVLOCAL *p)
   }
   for (int i = 0; i < WT_LEN; i++) p->wt[i] = ft->ftable[i];
 
-  /* 2) leggi e clamp parametri */
+  /* 2) read and clamp parameters */
   int start = clampi((int)floor((double)*p->kstart + 0.5), 0, WT_LEN - 2);
 
   double right  = (double)*p->kright;
@@ -250,10 +250,10 @@ static int wtgivlocal_perf(CSOUND *csound, WTGIVLOCAL *p)
   if (decay < 0.0) decay = 0.0;  if (decay > 1.0) decay = 1.0;
   if (move  < 0.0) move  = 0.0;  if (move  > 1.0) move  = 1.0;
 
-  /* kmove scala theta0: move=0 => nessuna rotazione => wavetable base */
+  /* kmove scales theta0: move=0 => no rotation => base wavetable */
   double theta_eff = theta0 * move;
 
-  /* 3) applica catene: both -> right -> left */
+  /* 3) apply chains: both -> right -> left */
   if (both  != 0.0) apply_chain_both (p->wt, start, theta_eff * both,  decay);
   if (right != 0.0) apply_chain_right(p->wt, start, theta_eff * right, decay);
   if (left  != 0.0) apply_chain_left (p->wt, start, theta_eff * left,  decay);
@@ -261,7 +261,7 @@ static int wtgivlocal_perf(CSOUND *csound, WTGIVLOCAL *p)
   /* 4) peak normalize */
   peak_normalize(p->wt);
 
-  /* 5) loop audio con interpolazione lineare */
+  /* 5) audio loop with linear interpolation */
   double sr    = p->sr;
   double freq  = (double)*p->kfreq;  if (freq < 0.0) freq = 0.0;
   double amp   = (double)*p->kamp;
@@ -287,8 +287,8 @@ static int wtgivlocal_perf(CSOUND *csound, WTGIVLOCAL *p)
 }
 
 /* ============================================================
- * Registrazione opcode
- * Firma: aOut wtgivlocal kfreq, kamp, itab,
+ * Opcode registration
+ * Signature: aOut wtgivlocal kfreq, kamp, itab,
  *                          kstart, kright, kleft, kboth,
  *                          ktheta0, kdecay, kmove
  * ============================================================ */

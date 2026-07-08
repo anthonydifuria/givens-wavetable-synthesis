@@ -3,49 +3,49 @@
  * ============================================================================
  * Csound plugin opcode: wtgivsobol
  *
- * DESCRIZIONE
+ * DESCRIPTION
  * -----------
- * Oscillatore wavetable con mescolanza timbrica guidata da SEQUENZE DI SOBOL
- * applicate come angoli di rotazioni di Givens.
+ * Wavetable oscillator with timbral mixing driven by SOBOL SEQUENCES
+ * applied as angles for Givens rotations.
  *
- * ── Cos'è una sequenza di Sobol? ──────────────────────────────────────────
- * Una sequenza di Sobol è una sequenza quasi-casuale a bassa discrepanza:
- * i punti sono "più uniformemente distribuiti" di punti pseudo-random puri.
- * In 1D, la sequenza Sobol riempie [0,1) in modo molto regolare, evitando
- * cluster e vuoti. Questo produce angoli di rotazione distribuiti in modo
- * quasi-uniforme su [-1,1], garantendo che ogni regione dello spazio timbrico
- * SO(1024) venga esplorata in modo bilanciato.
+ * ── What is a Sobol sequence? ──────────────────────────────────────────────
+ * A Sobol sequence is a low-discrepancy quasi-random sequence: the points
+ * are "more uniformly distributed" than purely pseudo-random points.
+ * In 1D, the Sobol sequence fills [0,1) very evenly, avoiding clusters
+ * and gaps. This produces rotation angles distributed in a nearly
+ * uniform way over [-1,1], ensuring that every region of the SO(1024)
+ * timbral space gets explored in a balanced manner.
  *
- * Algoritmo Sobol 1D (Gray-code increment):
- *   x_n = x_{n-1} XOR v_c     dove c = trailing_zeros(n)
- *   v_c = 1 << (31 - c)        (direction numbers semplificati)
+ * 1D Sobol algorithm (Gray-code increment):
+ *   x_n = x_{n-1} XOR v_c     where c = trailing_zeros(n)
+ *   v_c = 1 << (31 - c)        (simplified direction numbers)
  *
- * ── Comportamento DETERMINISTICO ─────────────────────────────────────────
- * IMPORTANTE: il Sobol viene RESETTATO a ogni k-block (seed=0).
- * Questo significa che gli stessi parametri producono SEMPRE la stessa
- * wavetable — comportamento identico alla versione Python.
- * È una mappa stabile parametri → timbro, non una deriva casuale.
- * kmove=0 restituisce esattamente la wavetable base.
+ * ── DETERMINISTIC behavior ─────────────────────────────────────────────────
+ * IMPORTANT: the Sobol generator is RESET at every k-block (seed=0).
+ * This means the same parameters ALWAYS produce the same wavetable —
+ * identical behavior to the Python version.
+ * It is a stable map from parameters → timbre, not a random drift.
+ * kmove=0 returns exactly the base wavetable.
  *
- * SINTASSI CSOUND
- * ---------------
+ * CSOUND SYNTAX
+ * -------------
  *   aOut wtgivsobol kfreq, kamp, itab,
  *                       kstart, kright, kleft, kboth,
  *                       ktheta0, kdecay, kmove
  *
- * PARAMETRI
- * ---------
- *   kfreq   (k) : frequenza [Hz]
- *   kamp    (k) : ampiezza
- *   itab    (i) : numero ftable (lunghezza >= 1024)
- *   kstart  (k) : indice di partenza [0..1023]
- *   kright  (k) : densità mixing locale forward [0..1]
- *   kleft   (k) : densità mixing locale backward [0..1]
- *   kboth   (k) : densità mixing non-locale (passo primo) [0..1]
- *   ktheta0 (k) : scala angoli [radianti]
- *   kdecay  (k) : decadimento geometrico [0..1]
- *   kmove   (k) : intensità trasformazione [0..1]
- *                 kmove=0 => wavetable base inalterata
+ * PARAMETERS
+ * ----------
+ *   kfreq   (k) : frequency [Hz]
+ *   kamp    (k) : amplitude
+ *   itab    (i) : ftable number (length >= 1024)
+ *   kstart  (k) : starting index [0..1023]
+ *   kright  (k) : forward local mixing density [0..1]
+ *   kleft   (k) : backward local mixing density [0..1]
+ *   kboth   (k) : non-local mixing density (prime step) [0..1]
+ *   ktheta0 (k) : angle scale [radians]
+ *   kdecay  (k) : geometric decay [0..1]
+ *   kmove   (k) : transformation intensity [0..1]
+ *                 kmove=0 => base wavetable unaltered
  * ============================================================================
  */
 
@@ -88,32 +88,32 @@ static void peak_normalize(MYFLT *x) {
 }
 
 /* ============================================================
- * SOBOL 1D — generatore deterministico a bassa discrepanza
+ * SOBOL 1D — deterministic low-discrepancy generator
  *
- * Stato: contatore intero i + accumulatore x (32 bit XOR).
- * Ad ogni chiamata a sobol_next01():
- *   1) incrementa i
- *   2) calcola c = numero di zeri finali di i (count trailing zeros)
+ * State: integer counter i + accumulator x (32-bit XOR).
+ * On each call to sobol_next01():
+ *   1) increment i
+ *   2) compute c = number of trailing zeros of i (count trailing zeros)
  *   3) direction number: v = 1 << (31 - c)
  *   4) x ^= v
- *   5) ritorna x / 2^32  in [0,1)
+ *   5) return x / 2^32  in [0,1)
  *
- * La sequenza risultante ha discrepanza O(log(N)/N), molto migliore
- * di pseudo-random O(1/sqrt(N)).
+ * The resulting sequence has discrepancy O(log(N)/N), much better
+ * than pseudo-random O(1/sqrt(N)).
  * ============================================================ */
 typedef struct {
-  uint32_t i;   /* contatore chiamate (parte da 0) */
-  uint32_t x;   /* accumulatore XOR (stato corrente) */
+  uint32_t i;   /* call counter (starts at 0) */
+  uint32_t x;   /* XOR accumulator (current state) */
 } SOBOL1D;
 
-/* Conta i bit zero finali (trailing zeros) di n>0 */
+/* Counts trailing zero bits of n>0 */
 static inline int ctz32(uint32_t n) {
   int c = 0;
   while ((n & 1u) == 0u) { n >>= 1; c++; }
   return c;
 }
 
-/* Prossimo campione in [0,1) */
+/* Next sample in [0,1) */
 static inline double sobol_next01(SOBOL1D *s) {
   s->i += 1u;
   int c = ctz32(s->i);
@@ -122,14 +122,14 @@ static inline double sobol_next01(SOBOL1D *s) {
   return (double)s->x / 4294967296.0;   /* / 2^32 */
 }
 
-/* Reset deterministico: stesso seed => stessa sequenza */
+/* Deterministic reset: same seed => same sequence */
 static inline void sobol_reset(SOBOL1D *s) {
   s->i = 0u;
   s->x = 0u;
 }
 
 /* ============================================================
- * Struttura dati dell'opcode
+ * Opcode data structure
  * ============================================================ */
 typedef struct {
   OPDS h;
@@ -141,13 +141,13 @@ typedef struct {
   double phase;
   double sr;
 
-  MYFLT base[WT_LEN];   /* copia statica della wavetable originale */
-  MYFLT wt[WT_LEN];     /* copia di lavoro trasformata */
+  MYFLT base[WT_LEN];   /* static copy of the original wavetable */
+  MYFLT wt[WT_LEN];     /* transformed working copy */
 
-  SOBOL1D sob;           /* generatore Sobol (resettato ogni k-block) */
+  SOBOL1D sob;           /* Sobol generator (reset every k-block) */
 } OP;
 
-/* Carica wavetable base dalla ftable Csound */
+/* Loads the base wavetable from the Csound ftable */
 static int load_base(CSOUND *csound, OP *p) {
   FUNC *ft = csound->FTnp2Find(csound, p->itab);
   if (UNLIKELY(ft == NULL || ft->flen < WT_LEN)) return NOTOK;
@@ -157,14 +157,14 @@ static int load_base(CSOUND *csound, OP *p) {
 
 /* ============================================================
  * next_theta
- * Genera il prossimo angolo di rotazione dalla sequenza Sobol.
+ * Generates the next rotation angle from the Sobol sequence.
  *
- * u  ∈ [0,1)  da Sobol
- * z  = 2u-1  ∈ [-1,1]  (centrato su zero)
+ * u  ∈ [0,1)  from Sobol
+ * z  = 2u-1  ∈ [-1,1]  (centered on zero)
  * theta = move * theta0 * decay^t * z
  *
- * Il decadimento geometrico decay^t fa sì che le prime rotazioni
- * (vicine a kstart) abbiano angoli più grandi delle successive.
+ * The geometric decay decay^t makes the first rotations (near
+ * kstart) have larger angles than the later ones.
  * ============================================================ */
 static inline double next_theta(OP *p, int t, double move, double theta0, double decay) {
   double u = sobol_next01(&p->sob);
@@ -174,43 +174,44 @@ static inline double next_theta(OP *p, int t, double move, double theta0, double
 
 /* ============================================================
  * build_wavetable
- * Costruisce la wavetable trasformata applicando rotazioni Givens
- * con angoli guidati dalla sequenza Sobol.
+ * Builds the transformed wavetable by applying Givens rotations
+ * with angles driven by the Sobol sequence.
  *
- * RESET DETERMINISTICO: sobol_reset() viene chiamato all'inizio,
- * quindi la stessa combinazione di parametri produce sempre
- * la stessa wavetable (identico comportamento al codice Python).
+ * DETERMINISTIC RESET: sobol_reset() is called at the start,
+ * so the same combination of parameters always produces the
+ * same wavetable (identical behavior to the Python code).
  * ============================================================ */
 static void build_wavetable(OP *p, int start,
                             double right, double left, double both,
                             double theta0, double decay, double move)
 {
-  /* Reset Sobol: FONDAMENTALE per comportamento deterministico.
-   * Senza reset, il Sobol continuerebbe ad avanzare tra un k-block
-   * e l'altro, producendo deriva incontrollata anche a parametri fissi. */
+  /* Sobol reset: ESSENTIAL for deterministic behavior.
+   * Without the reset, the Sobol generator would keep advancing
+   * from one k-block to the next, producing uncontrolled drift
+   * even with fixed parameters. */
   sobol_reset(&p->sob);
 
   memcpy(p->wt, p->base, WT_LEN * sizeof(MYFLT));
 
-  const int PRIME_STEP = 37;   /* coprimo con 1024: garantisce visita globale */
-  const int MAX_STEPS  = 512;  /* budget CPU per k-block */
+  const int PRIME_STEP = 37;   /* coprime with 1024: guarantees global visitation */
+  const int MAX_STEPS  = 512;  /* CPU budget per k-block */
 
   int stepsB = (int)floor(both  * (double)MAX_STEPS);
   int stepsR = (int)floor(right * (double)MAX_STEPS);
   int stepsL = (int)floor(left  * (double)MAX_STEPS);
 
-  int t = 0;   /* contatore globale passi (per il decadimento) */
+  int t = 0;   /* global step counter (used for the decay) */
 
-  /* BOTH: mixing non-locale a passo primo */
+  /* BOTH: non-local prime-step mixing */
   int i = start & WT_MASK;
   for (int s = 0; s < stepsB; s++) {
     int j = (i + PRIME_STEP) & WT_MASK;
     double th = next_theta(p, t++, move, theta0, decay);
     givens_inplace(p->wt, i, j, th);
-    i = (i + 1) & WT_MASK;   /* drift per evitare ripetizioni di coppie */
+    i = (i + 1) & WT_MASK;   /* drift to avoid repeating the same pairs */
   }
 
-  /* RIGHT: mixing locale forward */
+  /* RIGHT: forward local mixing */
   i = start & WT_MASK;
   for (int s = 0; s < stepsR; s++) {
     int j = (i + 1) & WT_MASK;
@@ -219,7 +220,7 @@ static void build_wavetable(OP *p, int start,
     i = j;
   }
 
-  /* LEFT: mixing locale backward */
+  /* LEFT: backward local mixing */
   i = start & WT_MASK;
   for (int s = 0; s < stepsL; s++) {
     int j = (i - 1) & WT_MASK;
@@ -231,7 +232,7 @@ static void build_wavetable(OP *p, int start,
   peak_normalize(p->wt);
 }
 
-/* Loop audio con interpolazione lineare */
+/* Audio loop with linear interpolation */
 static void render(OP *p, MYFLT *out, uint32_t offset, uint32_t nsmps) {
   double sr    = p->sr;
   double freq  = (double)*p->kfreq;  if (freq < 0.0) freq = 0.0;
@@ -259,14 +260,14 @@ static void render(OP *p, MYFLT *out, uint32_t offset, uint32_t nsmps) {
 static int op_init(CSOUND *csound, OP *p) {
   p->phase = 0.0;
   p->sr    = (double)csound->GetSr(csound);
-  sobol_reset(&p->sob);   /* seed deterministico = 0 */
+  sobol_reset(&p->sob);   /* deterministic seed = 0 */
   return OK;
 }
 
 /* ============================================================
  * op_perf  [a+k-rate]
- * Ogni k-block:
- *   1) Carica wavetable base
+ * Every k-block:
+ *   1) Load the base wavetable
  *   2) Reset Sobol + build_wavetable
  *   3) Render audio
  * ============================================================ */
@@ -299,8 +300,8 @@ static int op_perf(CSOUND *csound, OP *p) {
 }
 
 /* ============================================================
- * Registrazione opcode
- * Firma: aOut wtgivsobol kfreq, kamp, itab,
+ * Opcode registration
+ * Signature: aOut wtgivsobol kfreq, kamp, itab,
  *                            kstart, kright, kleft, kboth,
  *                            ktheta0, kdecay, kmove
  * ============================================================ */

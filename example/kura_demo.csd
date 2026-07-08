@@ -12,7 +12,7 @@ ksmps=64
 nchnls=2
 0dbfs=1
 
-; base: sinusoide
+; Base: sine wave
 giBase ftgen 1, 0, 1024, 10, 1
 
 instr 1
@@ -31,10 +31,10 @@ instr 2
 
   kright  = 0;rnd(512)
   kleft   = 0;-rnd(512)
-  kboth   = rnd(1)        ; <-- alza questo per “andare dappertutto”
+  kboth   = rnd(1)            ; <– Increase this to “go everywhere”
 
-  ktheta0 = rnd(3.14)        ; più alto = più aggressivo
-  kdecay  = 1   ; vicino a 1 = mixing lungo
+  ktheta0 = rnd(3.14)            ; Higher = more aggressive
+  kdecay  = 1       ; Closer to 1 = longer mixing
   kmove = 1
 
   aOut wtgivkura kfreq, kamp, 1, kstart, kright, kleft, kboth, ktheta0, kdecay, kmove

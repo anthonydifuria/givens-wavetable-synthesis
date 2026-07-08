@@ -1,12 +1,12 @@
 cmake_minimum_required(VERSION 3.16)
 project(wtgivlocal_opcode C)
 
-# Build type di default
+# Default build type
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
 endif()
 
-# Trova csdl.h
+# Find csdl.h
 find_path(CSOUND_INCLUDE_DIR
   NAMES csdl.h
   PATHS
@@ -19,20 +19,20 @@ find_path(CSOUND_INCLUDE_DIR
 
 if(NOT CSOUND_INCLUDE_DIR)
   message(FATAL_ERROR
-    "Impossibile trovare csdl.h.\n"
-    "Su macOS di solito è in:\n"
+    "Could not find csdl.h.\n"
+    "On macOS it is usually located at:\n"
     "  /Library/Frameworks/CsoundLib64.framework/Headers")
 endif()
 
 message(STATUS "Found Csound headers in: ${CSOUND_INCLUDE_DIR}")
 
-# Plugin opcode: MODULE su macOS produce .so (di solito ok per Csound plugin dir)
+# Opcode plugin: MODULE on macOS produces a .so (usually fine for the Csound plugin dir)
 add_library(wtgivlocal MODULE wtgivlocal.c)
 
 target_include_directories(wtgivlocal PRIVATE ${CSOUND_INCLUDE_DIR})
 
-# Niente prefisso "lib"
+# No "lib" prefix
 set_target_properties(wtgivlocal PROPERTIES PREFIX "")
 
-# Se ti serve .dylib invece di .so, decommenta:
+# If you need .dylib instead of .so, uncomment:
 # set_target_properties(wtgivlocal PROPERTIES SUFFIX ".dylib")

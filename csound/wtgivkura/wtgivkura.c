@@ -3,59 +3,59 @@
  * ============================================================================
  * Csound plugin opcode: wtgivkura
  *
- * DESCRIZIONE
+ * DESCRIPTION
  * -----------
- * Oscillatore wavetable con navigazione timbrica continua guidata dal MODELLO
- * DI KURAMOTO applicato come sorgente di angoli per rotazioni di Givens.
+ * Wavetable oscillator with continuous timbral navigation driven by the
+ * KURAMOTO MODEL used as an angle source for Givens rotations.
  *
- * ── Modello di Kuramoto ───────────────────────────────────────────────────
- * Il modello di Kuramoto descrive N oscillatori accoppiati con fasi theta_i:
+ * ── Kuramoto model ─────────────────────────────────────────────────────────
+ * The Kuramoto model describes N coupled oscillators with phases theta_i:
  *
  *   dtheta_i/dt = omega_i + (K/N) * Σ_j sin(theta_j - theta_i)
  *
- * - omega_i : frequenza naturale dell'oscillatore i (deterministica)
- * - K       : forza di accoppiamento (kboth)
- * - Il termine sin(theta_j - theta_i) tende a sincronizzare le fasi
+ * - omega_i : natural frequency of oscillator i (deterministic)
+ * - K       : coupling strength (kboth)
+ * - The sin(theta_j - theta_i) term tends to synchronize the phases
  *
- * Per K piccolo: ogni oscillatore segue la sua omega_i → caos controllato
- * Per K grande: tutti si sincronizzano → convergenza timbrica
- * La transizione K_c = 2*sigma_omega / pi è la soglia di sincronizzazione
+ * For small K: each oscillator follows its own omega_i → controlled chaos
+ * For large K: all oscillators synchronize → timbral convergence
+ * The transition K_c = 2*sigma_omega / pi is the synchronization threshold
  *
- * ── Collegamento con la wavetable ────────────────────────────────────────
- * Il vettore theta[KDIM] (KDIM=64 oscillatori) viene usato direttamente
- * come angoli per KDIM rotazioni di Givens non-locali sulla wavetable.
- * Ogni k-block il sistema Kuramoto avanza di dt = 0.002 * kmove,
- * producendo una traiettoria continua nello spazio SO(1024).
+ * ── Link to the wavetable ──────────────────────────────────────────────────
+ * The theta[KDIM] vector (KDIM=64 oscillators) is used directly as the
+ * angles for KDIM non-local Givens rotations on the wavetable.
+ * Every k-block the Kuramoto system advances by dt = 0.002 * kmove,
+ * producing a continuous trajectory in the space SO(1024).
  *
- * Differenza fondamentale rispetto a Sobol:
- *   - Sobol è SPAZIALE: stessi parametri → stesso timbro (mappa statica)
- *   - Kuramoto è TEMPORALE: stessi parametri → stessa TRAIETTORIA (flusso)
+ * Key difference from Sobol:
+ *   - Sobol is SPATIAL: same parameters → same timbre (static map)
+ *   - Kuramoto is TEMPORAL: same parameters → same TRAJECTORY (flow)
  *
- * SINTASSI CSOUND
- * ---------------
+ * CSOUND SYNTAX
+ * -------------
  *   aOut wtgivkura kfreq, kamp, itab,
  *                       kstart, kright, kleft, kboth,
  *                       ktheta0, kdecay, kmove
  *
- * PARAMETRI
- * ---------
- *   kfreq   (k) : frequenza [Hz]
- *   kamp    (k) : ampiezza
- *   itab    (i) : numero ftable (lunghezza >= 1024)
- *   kstart  (k) : indice di partenza nella wavetable [0..1023]
- *   kright  (k) : bias direzionale destra del profilo omega [0..1]
- *   kleft   (k) : bias direzionale sinistra del profilo omega [0..1]
- *   kboth   (k) : forza di accoppiamento Kuramoto K [0..10]
- *   ktheta0 (k) : scala delle frequenze naturali omega [radianti]
- *   kdecay  (k) : decadimento del profilo omega lungo gli indici [0..1]
- *   kmove   (k) : velocità di evoluzione temporale [0..10]
- *                 kmove=0 => sistema Kuramoto fermo => timbro statico
+ * PARAMETERS
+ * ----------
+ *   kfreq   (k) : frequency [Hz]
+ *   kamp    (k) : amplitude
+ *   itab    (i) : ftable number (length >= 1024)
+ *   kstart  (k) : starting index in the wavetable [0..1023]
+ *   kright  (k) : rightward directional bias of the omega profile [0..1]
+ *   kleft   (k) : leftward directional bias of the omega profile [0..1]
+ *   kboth   (k) : Kuramoto coupling strength K [0..10]
+ *   ktheta0 (k) : scale of the natural frequencies omega [radians]
+ *   kdecay  (k) : decay of the omega profile along the indices [0..1]
+ *   kmove   (k) : speed of temporal evolution [0..10]
+ *                 kmove=0 => Kuramoto system stationary => static timbre
  *
- * NOTE
- * ----
- * - Le fasi theta[] persistono tra i k-block: il timbro evolve nel tempo.
- * - L'integrazione usa RK2 (Runge-Kutta secondo ordine) per stabilità.
- * - KDIM=64 bilancia ricchezza del flusso e budget CPU.
+ * NOTES
+ * -----
+ * - The theta[] phases persist across k-blocks: the timbre evolves over time.
+ * - Integration uses RK2 (second-order Runge-Kutta) for stability.
+ * - KDIM=64 balances richness of the flow against CPU budget.
  * ============================================================================
  */
 
@@ -65,8 +65,8 @@
 
 #define WT_LEN     1024
 #define WT_MASK    (WT_LEN - 1)
-#define KDIM       64      /* numero oscillatori Kuramoto e rotazioni Givens */
-#define PRIME_STEP 37      /* passo non-locale, coprimo con 1024 */
+#define KDIM       64      /* number of Kuramoto oscillators and Givens rotations */
+#define PRIME_STEP 37      /* non-local step, coprime with 1024 */
 
 static inline double clampd(double v, double lo, double hi) {
   return v < lo ? lo : (v > hi ? hi : v);
@@ -100,11 +100,11 @@ static void peak_normalize(MYFLT *x) {
 
 /* ============================================================
  * kuramoto_rhs
- * Calcola le derivate del sistema Kuramoto:
+ * Computes the derivatives of the Kuramoto system:
  *   dtheta_i = omega_i + (K/N) * Σ_j sin(theta_j - theta_i)
  *
- * Il termine di accoppiamento è la media dei sin delle differenze
- * di fase, che tende ad allineare le fasi quando K è grande.
+ * The coupling term is the average of the sines of the phase
+ * differences, which tends to align the phases when K is large.
  * ============================================================ */
 static void kuramoto_rhs(const double *theta, const double *omega,
                           double K, double *dtheta)
@@ -120,12 +120,12 @@ static void kuramoto_rhs(const double *theta, const double *omega,
 
 /* ============================================================
  * kuramoto_step_rk2
- * Integrazione RK2 (metodo del punto medio) per stabilità numerica:
+ * RK2 integration (midpoint method) for numerical stability:
  *   k1 = f(theta)
- *   k2 = f(theta + 0.5*dt*k1)   ← valuta al punto medio
+ *   k2 = f(theta + 0.5*dt*k1)   ← evaluated at the midpoint
  *   theta += dt * k2
  *
- * RK2 è più stabile di Eulero per sistemi oscillatori.
+ * RK2 is more stable than Euler for oscillatory systems.
  * ============================================================ */
 static void kuramoto_step_rk2(double *theta, const double *omega,
                                double K, double dt)
@@ -139,18 +139,18 @@ static void kuramoto_step_rk2(double *theta, const double *omega,
 
 /* ============================================================
  * make_omega
- * Costruisce il profilo di frequenze naturali omega[KDIM].
+ * Builds the natural frequency profile omega[KDIM].
  *
- * Profilo base: omega_i = theta0 * decay^i
- *   → decadimento geometrico lungo gli indici (come le catene locali)
+ * Base profile: omega_i = theta0 * decay^i
+ *   → geometric decay along the indices (like the local chains)
  *
- * Bias direzionale tilt = 0.25*(right-left):
- *   omega_i *= (1 + tilt * pos_i)   dove pos_i ∈ [-1, +1]
- *   → right>left: oscillatori con indice alto hanno omega maggiore
- *   → left>right: oscillatori con indice basso hanno omega maggiore
+ * Directional bias tilt = 0.25*(right-left):
+ *   omega_i *= (1 + tilt * pos_i)   where pos_i ∈ [-1, +1]
+ *   → right>left: higher-index oscillators get a larger omega
+ *   → left>right: lower-index oscillators get a larger omega
  *
- * right e left influenzano la "direzione" del flusso Kuramoto,
- * non il numero di rotazioni come negli altri opcode.
+ * right and left influence the "direction" of the Kuramoto flow,
+ * not the number of rotations as in the other opcodes.
  * ============================================================ */
 static void make_omega(double *omega, double theta0, double decay,
                        double right, double left)
@@ -164,7 +164,7 @@ static void make_omega(double *omega, double theta0, double decay,
 }
 
 /* ============================================================
- * Struttura dati dell'opcode
+ * Opcode data structure
  * ============================================================ */
 typedef struct {
   OPDS h;
@@ -175,11 +175,11 @@ typedef struct {
 
   double phase, sr;
 
-  MYFLT base[WT_LEN];     /* wavetable originale */
-  MYFLT wt[WT_LEN];       /* wavetable trasformata */
+  MYFLT base[WT_LEN];     /* original wavetable */
+  MYFLT wt[WT_LEN];       /* transformed wavetable */
 
-  double theta[KDIM];     /* fasi Kuramoto — PERSISTONO tra k-block!
-                           * Questa è la "memoria" del flusso timbrico. */
+  double theta[KDIM];     /* Kuramoto phases — PERSIST across k-blocks!
+                           * This is the "memory" of the timbral flow. */
 } OP;
 
 static int load_base(CSOUND *cs, OP *p) {
@@ -191,10 +191,10 @@ static int load_base(CSOUND *cs, OP *p) {
 
 /* ============================================================
  * build_wavetable
- * Usa le KDIM fasi Kuramoto correnti come angoli per KDIM rotazioni
- * di Givens non-locali (passo primo) sulla wavetable.
+ * Uses the current KDIM Kuramoto phases as angles for KDIM
+ * non-local Givens rotations (prime step) on the wavetable.
  *
- * i parte da start, avanza di 1 (drift) ad ogni rotazione.
+ * i starts at start, advancing by 1 (drift) on each rotation.
  * j = (i + PRIME_STEP) % 1024
  * ============================================================ */
 static void build_wavetable(OP *p, int start) {
@@ -208,7 +208,7 @@ static void build_wavetable(OP *p, int start) {
   peak_normalize(p->wt);
 }
 
-/* Loop audio con interpolazione lineare */
+/* Audio loop with linear interpolation */
 static void render(OP *p, MYFLT *out, uint32_t offset, uint32_t nsmps) {
   double sr    = p->sr;
   double freq  = (double)*p->kfreq;  if (freq < 0) freq = 0;
@@ -233,7 +233,7 @@ static void render(OP *p, MYFLT *out, uint32_t offset, uint32_t nsmps) {
 
 /* ============================================================
  * op_init  [i-rate]
- * Inizializza fasi Kuramoto a zero: theta_i=0 => wavetable base.
+ * Initializes Kuramoto phases to zero: theta_i=0 => base wavetable.
  * ============================================================ */
 static int op_init(CSOUND *cs, OP *p) {
   p->phase = 0.0;
@@ -244,11 +244,11 @@ static int op_init(CSOUND *cs, OP *p) {
 
 /* ============================================================
  * op_perf  [a+k-rate]
- * Ogni k-block:
- *   1) Carica wavetable base
- *   2) Costruisce profilo omega dai parametri
- *   3) Avanza il sistema Kuramoto di dt = 0.002 * kmove
- *   4) Costruisce wavetable con le fasi correnti
+ * Every k-block:
+ *   1) Load the base wavetable
+ *   2) Build the omega profile from the parameters
+ *   3) Advance the Kuramoto system by dt = 0.002 * kmove
+ *   4) Build the wavetable with the current phases
  *   5) Render audio
  * ============================================================ */
 static int op_perf(CSOUND *cs, OP *p) {
@@ -274,25 +274,25 @@ static int op_perf(CSOUND *cs, OP *p) {
   double decay  = clampd((double)*p->kdecay,  0.0, 1.0);
   double move   = clampd((double)*p->kmove,   0.0, 10.0);  /* dt speed */
 
-  /* costruisce profilo omega */
+  /* build the omega profile */
   double omega[KDIM];
   make_omega(omega, theta0, decay, right, left);
 
-  /* avanza il sistema Kuramoto:
-   * dt piccolo = evoluzione lenta e stabile
-   * kmove=0 => dt=0 => theta fermo => timbro invariato */
+  /* advance the Kuramoto system:
+   * small dt = slow, stable evolution
+   * kmove=0 => dt=0 => theta stationary => timbre unchanged */
   double dt = 0.002 * move;
   kuramoto_step_rk2(p->theta, omega, K, dt);
 
-  /* costruisce la wavetable con le fasi aggiornate */
+  /* build the wavetable with the updated phases */
   build_wavetable(p, start);
   render(p, out, offset, nsmps);
   return OK;
 }
 
 /* ============================================================
- * Registrazione opcode
- * Firma: aOut wtgivkura kfreq, kamp, itab,
+ * Opcode registration
+ * Signature: aOut wtgivkura kfreq, kamp, itab,
  *                            kstart, kright, kleft, kboth,
  *                            ktheta0, kdecay, kmove
  * ============================================================ */

@@ -160,10 +160,3 @@ of freedom.
 ## License
 
 MIT
-
----
-
-## Authors
-
-Anthony Di Furia — LEAP, Laboratorio ElettroAcustico Permanente, Rome  
-Giuseppe Silvi — Conservatorio A. Casella, L'Aquila

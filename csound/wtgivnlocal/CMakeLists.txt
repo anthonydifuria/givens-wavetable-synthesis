@@ -16,7 +16,7 @@ find_path(CSOUND_INCLUDE_DIR
 )
 
 if(NOT CSOUND_INCLUDE_DIR)
-  message(FATAL_ERROR "Impossibile trovare csdl.h (Csound headers).")
+  message(FATAL_ERROR "Could not find csdl.h (Csound headers).")
 endif()
 
 message(STATUS "Found Csound headers in: ${CSOUND_INCLUDE_DIR}")

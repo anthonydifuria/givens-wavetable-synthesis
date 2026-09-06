@@ -157,6 +157,27 @@ of freedom.
 
 ---
 
+## Authors
+
+- Luca Bimbi -- Conservatorio "A. Corelli", Messina, Italy; Conservatorio "S. Giacomantonio", Cosenza, Italy
+- Anthony Di Furia -- LEAP - Laboratorio ElettroAcustico Permanente, Rome, Italy; Conservatorio "N. Piccinni", Bari, Italy
+- Giuseppe Silvi -- Conservatorio "A. Casella", L'Aquila, Italy
+
+## Validation dataset
+
+A companion dataset of controlled audio renderings, spectrograms, and
+parameter-vs-time plots for all four opcodes (used to support the spectral
+observations reported in the accompanying paper) is archived on Zenodo:
+
+**DOI:** [10.5281/zenodo.22539741](https://doi.org/10.5281/zenodo.22539741)
+
+## Citation
+
+If you use this code or the accompanying dataset, please cite the paper
+and/or dataset -- see [`CITATION.cff`](CITATION.cff).
+
+---
+
 ## License
 
 MIT

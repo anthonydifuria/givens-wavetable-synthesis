@@ -1,0 +1,42 @@
+cff-version: 1.2.0
+message: "If you use this software, or the accompanying validation dataset, please cite the paper below and/or the dataset."
+title: "Wavetable Givens Navigation"
+type: software
+authors:
+  - family-names: Bimbi
+    given-names: Luca
+    affiliation: "Conservatorio \"A. Corelli\", Messina, Italy; Conservatorio \"S. Giacomantonio\", Cosenza, Italy"
+    email: bimbi.luca@gmail.com
+  - family-names: "Di Furia"
+    given-names: Anthony
+    affiliation: "LEAP -- Laboratorio ElettroAcustico Permanente, Rome, Italy; Conservatorio \"N. Piccinni\", Bari, Italy"
+    email: anthonydifuria.sound@gmail.com
+  - family-names: Silvi
+    given-names: Giuseppe
+    affiliation: "Conservatorio \"A. Casella\", L'Aquila, Italy"
+    email: grammaton@me.com
+license: MIT
+keywords:
+  - wavetable synthesis
+  - Givens rotations
+  - Csound
+  - Kuramoto model
+  - Sobol sequences
+# TODO: add repository-code once the public GitHub URL is finalized, e.g.:
+# repository-code: "https://github.com/<org-or-user>/givens-wavetable-synthesis"
+preferred-citation:
+  type: conference-paper
+  title: "Four Routes Through Hyperspace: Wavetable Navigation Strategies via Givens Rotations"
+  authors:
+    - family-names: Bimbi
+      given-names: Luca
+    - family-names: "Di Furia"
+      given-names: Anthony
+    - family-names: Silvi
+      given-names: Giuseppe
+  collection-title: "Proceedings of the International Csound Conference (ICSC 2026)"
+  # TODO: add year/volume/pages/publisher once known from the final proceedings
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.22539741
+    description: "Companion validation dataset (audio renderings, spectrograms, Csound sources, and analysis scripts) archived on Zenodo"

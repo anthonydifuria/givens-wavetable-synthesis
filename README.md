@@ -167,9 +167,22 @@ of freedom.
 
 A companion dataset of controlled audio renderings, spectrograms, and
 parameter-vs-time plots for all four opcodes (used to support the spectral
-observations reported in the accompanying paper) is archived on Zenodo:
+observations reported in the accompanying paper) is archived on Zenodo --
+this is the authoritative, citable copy:
 
 **DOI:** [10.5281/zenodo.22539741](https://doi.org/10.5281/zenodo.22539741)
+
+A couple of the figures are also mirrored below for quick browsing (see
+[`validation/`](validation/) for the source files):
+
+**Same `kmove` sweep on all four opcodes:**
+
+![kmove sweep comparison](validation/comparison_kmove_sweep.png)
+
+**Reset/memory test -- the three deterministic strategies return to the
+base tone, Kuramoto does not:**
+
+![reset test comparison](validation/comparison_reset_test.png)
 
 ## Citation
 

@@ -16,14 +16,13 @@ authors:
     affiliation: "Conservatorio \"A. Casella\", L'Aquila, Italy"
     email: grammaton@me.com
 license: MIT
+repository-code: "https://github.com/anthonydifuria/givens-wavetable-synthesis"
 keywords:
   - wavetable synthesis
   - Givens rotations
   - Csound
   - Kuramoto model
   - Sobol sequences
-# TODO: add repository-code once the public GitHub URL is finalized, e.g.:
-# repository-code: "https://github.com/<org-or-user>/givens-wavetable-synthesis"
 preferred-citation:
   type: conference-paper
   title: "Four Routes Through Hyperspace: Wavetable Navigation Strategies via Givens Rotations"
@@ -35,7 +34,7 @@ preferred-citation:
     - family-names: Silvi
       given-names: Giuseppe
   collection-title: "Proceedings of the International Csound Conference (ICSC 2026)"
-  # TODO: add year/volume/pages/publisher once known from the final proceedings
+  # NOTE: add year/volume/pages/publisher once known from the final proceedings
 identifiers:
   - type: doi
     value: 10.5281/zenodo.22539741
